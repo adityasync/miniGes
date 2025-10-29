@@ -1,0 +1,55 @@
+sign_recognition:
+  architecture: mvit_v2_s
+  input_channels: 3
+  frame_size:
+  - 224
+  - 224
+  temporal_length: 16
+  pretrained_weights: DEFAULT
+  freeze_backbone: false
+  unfreeze_layers: []
+  classifier:
+    dropout: 0.2
+    num_classes: 30
+    layer_keywords:
+    - head
+    - fc
+  optimizer:
+    type: adamw
+    lr: 0.0003
+    weight_decay: 0.0001
+  scheduler:
+    type: cosine_annealing
+    t_max: 25
+  metrics:
+  - top1_accuracy
+  - top5_accuracy
+transformer:
+  architecture: seq2seq
+  vocab_size: 128
+  max_seq_length: 16
+  pretrained_model: gpt2
+  d_model: 256
+  num_heads: 8
+  feedforward_dim: 512
+  num_encoder_layers: 4
+  num_decoder_layers: 4
+  dropout: 0.1
+  activation: relu
+  share_embeddings: true
+  optimizer:
+    type: adamw
+    lr: 0.0003
+    weight_decay: 0.0001
+    betas:
+    - 0.9
+    - 0.98
+    eps: 1.0e-09
+  scheduler:
+    type: inverse_sqrt
+    warmup_steps: 4000
+  label_smoothing: 0.1
+  special_tokens:
+    pad: <pad>
+    bos: <bos>
+    eos: <eos>
