@@ -411,3 +411,107 @@
 2025-10-29 23:50:51,924 | INFO | __main__ | Epoch 10 | LRs [1.19e-04, 2.38e-04] | Train loss: 1.0787 acc: 0.7699 top5: 0.9768 | Val loss: 0.9734 acc: 0.7927 top5: 0.9948
 2025-10-29 23:50:53,088 | INFO | __main__ | Saved improved checkpoint to models/checkpoints/sign_recognition/mvit_v2_s_sign_recognition.pt (val acc 0.7927)
 2025-10-29 23:56:06,528 | INFO | __main__ | Epoch 11 | LRs [1.17e-04, 2.33e-04] | Train loss: 0.9694 acc: 0.7916 top5: 0.9884 | Val loss: 0.9937 acc: 0.7824 top5: 0.9948
+2025-10-30 12:46:40,896 | INFO | __main__ | Using device: cuda
+2025-10-30 12:46:41,021 | INFO | __main__ | Discovered 46 classes | 691 training videos | 193 validation videos
+2025-10-30 12:46:41,754 | INFO | __main__ | Total trainable parameters: 34.27M
+2025-10-30 12:46:41,756 | INFO | __main__ | Initial learning rates -> backbone: 1.25e-04 | classifier: 2.50e-04
+2025-10-30 12:46:41,756 | INFO | __main__ | Using cosine scheduler with linear warmup (4 epochs, start factor 0.10)
+2025-10-30 12:46:41,756 | INFO | __main__ | Starting training loop
+2025-10-30 12:50:14,461 | INFO | __main__ | Epoch 1 | LRs [1.25e-05, 2.50e-05] | Train loss: 3.8993 acc: 0.0449 top5: 0.1606 | Val loss: 3.8223 acc: 0.0207 top5: 0.1606
+2025-10-30 12:50:14,970 | INFO | __main__ | Saved improved checkpoint to models/checkpoints/sign_recognition/mvit_v2_s_sign_recognition.pt (val acc 0.0207)
+2025-10-30 12:54:40,718 | INFO | __main__ | Epoch 2 | LRs [4.06e-05, 8.13e-05] | Train loss: 3.5950 acc: 0.0912 top5: 0.3097 | Val loss: 3.4429 acc: 0.1399 top5: 0.4456
+2025-10-30 12:54:41,115 | INFO | __main__ | Saved improved checkpoint to models/checkpoints/sign_recognition/mvit_v2_s_sign_recognition.pt (val acc 0.1399)
+2025-10-30 12:59:27,522 | INFO | __main__ | Epoch 3 | LRs [6.88e-05, 1.38e-04] | Train loss: 2.9578 acc: 0.2373 top5: 0.5731 | Val loss: 2.7825 acc: 0.2539 top5: 0.6943
+2025-10-30 12:59:28,230 | INFO | __main__ | Saved improved checkpoint to models/checkpoints/sign_recognition/mvit_v2_s_sign_recognition.pt (val acc 0.2539)
+2025-10-30 13:04:15,531 | INFO | __main__ | Epoch 4 | LRs [9.69e-05, 1.94e-04] | Train loss: 2.3389 acc: 0.3488 top5: 0.7786 | Val loss: 2.2278 acc: 0.3731 top5: 0.8135
+2025-10-30 13:04:15,943 | INFO | __main__ | Saved improved checkpoint to models/checkpoints/sign_recognition/mvit_v2_s_sign_recognition.pt (val acc 0.3731)
+2025-10-30 13:09:03,877 | INFO | __main__ | Epoch 5 | LRs [1.25e-04, 2.50e-04] | Train loss: 1.8394 acc: 0.4834 top5: 0.8944 | Val loss: 1.8191 acc: 0.5389 top5: 0.8808
+2025-10-30 13:09:04,313 | INFO | __main__ | Saved improved checkpoint to models/checkpoints/sign_recognition/mvit_v2_s_sign_recognition.pt (val acc 0.5389)
+2025-10-30 13:13:59,618 | INFO | __main__ | Epoch 6 | LRs [1.24e-04, 2.48e-04] | Train loss: 1.6234 acc: 0.5586 top5: 0.9175 | Val loss: 1.5006 acc: 0.6062 top5: 0.9845
+2025-10-30 13:14:00,498 | INFO | __main__ | Saved improved checkpoint to models/checkpoints/sign_recognition/mvit_v2_s_sign_recognition.pt (val acc 0.6062)
+2025-10-30 13:18:55,712 | INFO | __main__ | Epoch 7 | LRs [1.20e-04, 2.40e-04] | Train loss: 1.3031 acc: 0.6643 top5: 0.9740 | Val loss: 1.3039 acc: 0.6995 top5: 0.9793
+2025-10-30 13:18:56,355 | INFO | __main__ | Saved improved checkpoint to models/checkpoints/sign_recognition/mvit_v2_s_sign_recognition.pt (val acc 0.6995)
+2025-10-30 13:23:50,947 | INFO | __main__ | Epoch 8 | LRs [1.14e-04, 2.29e-04] | Train loss: 1.1783 acc: 0.7308 top5: 0.9711 | Val loss: 1.2170 acc: 0.6995 top5: 0.9896
+2025-10-30 13:28:44,183 | INFO | __main__ | Epoch 9 | LRs [1.07e-04, 2.13e-04] | Train loss: 1.0878 acc: 0.7482 top5: 0.9754 | Val loss: 1.0334 acc: 0.7824 top5: 0.9896
+2025-10-30 13:28:44,603 | INFO | __main__ | Saved improved checkpoint to models/checkpoints/sign_recognition/mvit_v2_s_sign_recognition.pt (val acc 0.7824)
+2025-10-30 13:33:38,970 | INFO | __main__ | Epoch 10 | LRs [9.72e-05, 1.94e-04] | Train loss: 1.0432 acc: 0.7641 top5: 0.9812 | Val loss: 0.9524 acc: 0.7824 top5: 0.9896
+2025-10-30 13:38:32,668 | INFO | __main__ | Epoch 11 | LRs [8.64e-05, 1.73e-04] | Train loss: 0.9326 acc: 0.8003 top5: 0.9870 | Val loss: 0.9381 acc: 0.8135 top5: 0.9948
+2025-10-30 13:38:33,139 | INFO | __main__ | Saved improved checkpoint to models/checkpoints/sign_recognition/mvit_v2_s_sign_recognition.pt (val acc 0.8135)
+2025-10-30 13:43:26,591 | INFO | __main__ | Epoch 12 | LRs [7.47e-05, 1.49e-04] | Train loss: 0.8844 acc: 0.8321 top5: 0.9884 | Val loss: 0.8483 acc: 0.8549 top5: 0.9948
+2025-10-30 13:43:27,006 | INFO | __main__ | Saved improved checkpoint to models/checkpoints/sign_recognition/mvit_v2_s_sign_recognition.pt (val acc 0.8549)
+2025-10-30 13:48:22,052 | INFO | __main__ | Epoch 13 | LRs [6.25e-05, 1.25e-04] | Train loss: 0.8354 acc: 0.8437 top5: 0.9884 | Val loss: 0.7577 acc: 0.8756 top5: 0.9948
+2025-10-30 13:48:22,484 | INFO | __main__ | Saved improved checkpoint to models/checkpoints/sign_recognition/mvit_v2_s_sign_recognition.pt (val acc 0.8756)
+2025-10-30 13:53:17,636 | INFO | __main__ | Epoch 14 | LRs [5.03e-05, 1.01e-04] | Train loss: 0.7606 acc: 0.8828 top5: 0.9957 | Val loss: 0.7188 acc: 0.8912 top5: 0.9948
+2025-10-30 13:53:18,032 | INFO | __main__ | Saved improved checkpoint to models/checkpoints/sign_recognition/mvit_v2_s_sign_recognition.pt (val acc 0.8912)
+2025-10-30 13:58:12,810 | INFO | __main__ | Epoch 15 | LRs [3.86e-05, 7.72e-05] | Train loss: 0.7637 acc: 0.8915 top5: 0.9971 | Val loss: 0.6943 acc: 0.8964 top5: 0.9948
+2025-10-30 13:58:13,230 | INFO | __main__ | Saved improved checkpoint to models/checkpoints/sign_recognition/mvit_v2_s_sign_recognition.pt (val acc 0.8964)
+2025-10-30 14:03:08,079 | INFO | __main__ | Epoch 16 | LRs [2.78e-05, 5.56e-05] | Train loss: 0.7685 acc: 0.8886 top5: 0.9913 | Val loss: 0.7030 acc: 0.8912 top5: 1.0000
+2025-10-30 14:08:02,258 | INFO | __main__ | Epoch 17 | LRs [1.83e-05, 3.66e-05] | Train loss: 0.7139 acc: 0.8973 top5: 0.9899 | Val loss: 0.6808 acc: 0.9119 top5: 0.9948
+2025-10-30 14:08:02,667 | INFO | __main__ | Saved improved checkpoint to models/checkpoints/sign_recognition/mvit_v2_s_sign_recognition.pt (val acc 0.9119)
+2025-10-30 14:12:55,363 | INFO | __main__ | Epoch 18 | LRs [1.05e-05, 2.11e-05] | Train loss: 0.6690 acc: 0.9219 top5: 0.9942 | Val loss: 0.6663 acc: 0.9119 top5: 0.9948
+2025-10-30 14:17:48,050 | INFO | __main__ | Epoch 19 | LRs [4.76e-06, 9.52e-06] | Train loss: 0.6553 acc: 0.9190 top5: 0.9957 | Val loss: 0.6602 acc: 0.9119 top5: 1.0000
+2025-10-30 14:22:40,643 | INFO | __main__ | Epoch 20 | LRs [1.20e-06, 2.40e-06] | Train loss: 0.7099 acc: 0.8958 top5: 0.9913 | Val loss: 0.6580 acc: 0.9119 top5: 1.0000
+2025-10-30 14:23:33,062 | INFO | __main__ | Final validation accuracy: 0.9119 | Top-5: 0.9948
+2025-10-30 14:23:33,063 | INFO | __main__ | Classification report:
+                  precision    recall  f1-score   support
+
+          1. Dog       1.00      1.00      1.00         4
+          2. Cat       1.00      1.00      1.00         4
+         3. Fish       1.00      1.00      1.00         4
+        3. happy       1.00      1.00      1.00         5
+         4. Bird       0.67      1.00      0.80         4
+          4. sad       1.00      1.00      1.00         2
+           40. I       1.00      1.00      1.00         5
+         41. you       1.00      1.00      1.00         5
+     42. T-Shirt       1.00      1.00      1.00         4
+          42. he       0.56      1.00      0.71         5
+        43. Pant       1.00      1.00      1.00         4
+         43. she       1.00      0.20      0.33         5
+       44. Shoes       1.00      1.00      1.00         4
+          44. it       1.00      1.00      1.00         5
+      45. Pocket       1.00      1.00      1.00         4
+          45. we       1.00      1.00      1.00         5
+46. you (plural)       1.00      1.00      1.00         5
+         47. Red       0.80      1.00      0.89         4
+        47. they       1.00      1.00      1.00         5
+       48. Green       0.67      0.50      0.57         4
+       48. Hello       1.00      1.00      1.00         5
+ 49. How are you       1.00      1.00      1.00         5
+    5. Beautiful       1.00      1.00      1.00         2
+     50. Alright       1.00      1.00      1.00         5
+      50. Yellow       0.75      0.75      0.75         4
+   55. Thank you       1.00      1.00      1.00         5
+     56. Pleased       1.00      1.00      1.00         5
+         58. Son       0.50      1.00      0.67         4
+    59. Daughter       0.00      0.00      0.00         4
+         6. Ugly       1.00      1.00      1.00         2
+      60. Mother       0.80      1.00      0.89         4
+      61. Father       0.80      1.00      0.89         4
+      62. Parent       1.00      0.75      0.86         4
+       73. Today       1.00      0.67      0.80         3
+    74. Tomorrow       0.75      1.00      0.86         3
+   75. Yesterday       1.00      1.00      1.00         3
+       79. Child       1.00      1.00      1.00         4
+       8. Animal       1.00      0.50      0.67         4
+       80. Adult       1.00      1.00      1.00         4
+      81. Friend       1.00      0.75      0.86         4
+      82. Player       1.00      0.75      0.86         4
+       83. Crowd       0.80      1.00      0.89         4
+         92. old       1.00      1.00      1.00         5
+       93. young       1.00      1.00      1.00         5
+        94. good       1.00      1.00      1.00         5
+         95. bad       1.00      1.00      1.00         5
+
+        accuracy                           0.91       193
+       macro avg       0.91      0.91      0.90       193
+    weighted avg       0.92      0.91      0.90       193
+
+2025-10-30 14:23:33,063 | INFO | __main__ | Confusion matrix:
+[[4 0 0 ... 0 0 0]
+ [0 4 0 ... 0 0 0]
+ [0 0 4 ... 0 0 0]
+ ...
+ [0 0 0 ... 5 0 0]
+ [0 0 0 ... 0 5 0]
+ [0 0 0 ... 0 0 5]]
+2025-10-30 14:23:33,094 | INFO | __main__ | Saved training summary to logs/sign_recognition_runs/mvit_v2_s_run_20251030_142333.json
