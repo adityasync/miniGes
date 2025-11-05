@@ -12,10 +12,11 @@ import json
 import logging
 import os
 import random
+import shutil
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Iterable, List, Tuple
+from typing import Any, Dict, Iterable, List, Tuple
 import sys
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -274,6 +275,7 @@ def train() -> None:
         normalize=normalize_enabled,
         mean=mean,
         std=std,
+        augmentations_config=config["preprocessing"].get("augmentations", {}),
         temporal_jitter=train_config.get("temporal_jitter", False),
         clip_stride=int(config["preprocessing"].get("clip_stride", 1)),
     )
@@ -346,6 +348,36 @@ def train() -> None:
     )
 
     model = build_sign_recognition_model(model_config).to(device)
+
+    checkpoints_dir = Path(config["paths"]["recognition_checkpoint_dir"])
+    checkpoints_dir.mkdir(parents=True, exist_ok=True)
+    architecture_name = model_config.get("architecture", "baseline")
+    checkpoint_basename = f"{architecture_name}_sign_recognition.pt"
+    checkpoint_path = checkpoints_dir / checkpoint_basename
+    best_checkpoint_path = None
+    backup_checkpoint_path = None
+    if checkpoint_path.exists():
+        timestamp = datetime.utcnow().strftime("%Y%m%dT%H%M%S")
+        backup_checkpoint_path = checkpoint_path.with_name(
+            f"{checkpoint_path.stem}_backup_{timestamp}{checkpoint_path.suffix}"
+        )
+        try:
+            shutil.copy2(checkpoint_path, backup_checkpoint_path)
+            LOGGER.info("Existing checkpoint backed up to %s", backup_checkpoint_path)
+        except OSError as exc:
+            LOGGER.warning("Failed to back up existing checkpoint: %s", exc)
+
+    resume_from_checkpoint = bool(train_config.get("resume_from_checkpoint", False))
+    resume_lr_factor = float(train_config.get("resume_lr_factor", 1.0))
+    resume_state_loaded = False
+    if resume_from_checkpoint and checkpoint_path.exists():
+        try:
+            state_dict = torch.load(checkpoint_path, map_location=device)
+            model.load_state_dict(state_dict, strict=False)
+            resume_state_loaded = True
+            LOGGER.info("Loaded checkpoint weights from %s for fine-tuning", checkpoint_path)
+        except Exception as exc:  # pragma: no cover
+            LOGGER.warning("Unable to load checkpoint from %s: %s", checkpoint_path, exc)
     learning_rate = float(train_config.get("learning_rate", 5e-4))
     weight_decay = float(train_config.get("weight_decay", 1e-4))
     backbone_lr_multiplier = float(train_config.get("backbone_lr_multiplier", 1.0))
@@ -432,17 +464,29 @@ def train() -> None:
     best_val_acc = 0.0
     epochs_without_improvement = 0
 
-    checkpoints_dir = Path(config["paths"]["recognition_checkpoint_dir"])
-    checkpoints_dir.mkdir(parents=True, exist_ok=True)
-    architecture_name = model_config.get("architecture", "baseline")
-    checkpoint_basename = f"{architecture_name}_sign_recognition.pt"
-    checkpoint_path = checkpoints_dir / checkpoint_basename
-    best_checkpoint_path = None
+    if resume_state_loaded and resume_lr_factor not in (1.0,):
+        for group in optimizer.param_groups:
+            group["lr"] *= resume_lr_factor
+        if scheduler is not None:
+            if hasattr(scheduler, "base_lrs"):
+                scheduler.base_lrs = [lr * resume_lr_factor for lr in scheduler.base_lrs]
+            # SequentialLR stores schedulers attribute with their own base_lrs
+            if hasattr(scheduler, "_schedulers"):
+                for sub_scheduler in scheduler._schedulers:
+                    if hasattr(sub_scheduler, "base_lrs"):
+                        sub_scheduler.base_lrs = [
+                            lr * resume_lr_factor for lr in sub_scheduler.base_lrs
+                        ]
+        LOGGER.info(
+            "Scaled learning rates by factor %.3f for resumed fine-tuning",
+            resume_lr_factor,
+        )
 
     LOGGER.info("Starting training loop")
     grad_accum_steps = max(1, int(train_config.get("gradient_accumulation_steps", 1)))
+    epoch_history: List[Dict[str, Any]] = []
 
-    for epoch in range(train_config.get("num_epochs", 1)):
+    for epoch in range(num_epochs):
         model.train()
         optimizer.zero_grad(set_to_none=True)
         running_loss = 0.0
@@ -542,6 +586,25 @@ def train() -> None:
             torch.save(model.state_dict(), checkpoint_path)
             best_checkpoint_path = checkpoint_path
 
+        epoch_record: Dict[str, Any] = {
+            "epoch": epoch + 1,
+            "learning_rates": lr_values,
+            "train_loss": float(train_loss),
+            "train_acc": float(train_acc),
+            "train_top5": float(train_top5),
+        }
+        if val_loader:
+            epoch_record.update(
+                {
+                    "val_loss": float(val_loss),
+                    "val_acc": float(val_acc),
+                    "val_top5": float(val_top5),
+                }
+            )
+        else:
+            epoch_record.update({"val_loss": None, "val_acc": None, "val_top5": None})
+        epoch_history.append(epoch_record)
+
         if scheduler:
             scheduler.step()
 
@@ -603,6 +666,7 @@ def train() -> None:
         "accuracy": float(final_acc),
         "top5": float(top5_final),
         "checkpoint_path": str(best_checkpoint_path),
+        "backed_up_checkpoint": str(backup_checkpoint_path) if backup_checkpoint_path else None,
         "classification_report": report,
         "confusion_matrix": cm.tolist(),
         "class_names": class_names,
@@ -610,15 +674,46 @@ def train() -> None:
         "model_config": model_config,
     }
 
+    if epoch_history:
+        def _best_score(record: Dict[str, Any]) -> float:
+            val_acc = record.get("val_acc")
+            if val_acc is not None:
+                return float(val_acc)
+            return float(record.get("train_acc", 0.0))
+
+        best_epoch = max(epoch_history, key=_best_score, default=None)
+    else:
+        best_epoch = None
+
+    results["epoch_metrics"] = epoch_history
+    if best_epoch is not None:
+        results["best_epoch"] = best_epoch
+
     logs_base = Path(config["paths"].get("logs_dir", "logs"))
     archive_dir = logs_base / "sign_recognition_runs"
+    archived_run_path: Path | None = None
     try:
         archive_dir.mkdir(parents=True, exist_ok=True)
         run_fname = f"{results['architecture']}_run_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-        (archive_dir / run_fname).write_text(json.dumps(results, indent=2), encoding="utf-8")
-        LOGGER.info("Saved training summary to %s", archive_dir / run_fname)
+        archived_run_path = archive_dir / run_fname
+        archived_run_path.write_text(json.dumps(results, indent=2), encoding="utf-8")
+        LOGGER.info("Saved training summary to %s", archived_run_path)
     except Exception as exc:  # pragma: no cover
         LOGGER.warning("Failed to persist training summary: %s", exc)
+
+    analysis_dir = logs_base / "analysis"
+    analysis_dir.mkdir(parents=True, exist_ok=True)
+    summary_path = analysis_dir / "latest_training_summary.json"
+    summary_payload = {
+        "epochs": epoch_history,
+        "best_epoch": best_epoch,
+        "latest_archive": str(archived_run_path) if archived_run_path else None,
+    }
+    try:
+        summary_path.write_text(json.dumps(summary_payload, indent=2), encoding="utf-8")
+        LOGGER.info("Wrote latest training analytics summary to %s", summary_path)
+    except Exception as exc:  # pragma: no cover
+        LOGGER.warning("Failed to write training analytics summary: %s", exc)
 
     return results
 

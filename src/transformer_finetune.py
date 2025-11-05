@@ -72,21 +72,29 @@ def fine_tune() -> None:
     sentences = build_sentences_from_vocab(vocab_df)
 
     pretrained_model = model_config.get("pretrained_model", "gpt2")
-    tokenizer = AutoTokenizer.from_pretrained(pretrained_model)
+    transformer_cfg = config["training"]["transformer"]
+    continue_from_checkpoint = bool(transformer_cfg.get("continue_from_checkpoint", False))
+    additional_epochs = int(transformer_cfg.get("additional_epochs", 0))
+
+    checkpoint_has_state = checkpoint_dir.exists() and any(checkpoint_dir.iterdir())
+    tokenizer_source = checkpoint_dir if continue_from_checkpoint and checkpoint_has_state else pretrained_model
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_source)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
     dataset = VocabularyDataset(sentences, tokenizer, model_config.get("max_seq_length", 16))
     dataloader = DataLoader(dataset, batch_size=8, shuffle=True)
 
-    model = AutoModelForCausalLM.from_pretrained(pretrained_model)
+    model_source = checkpoint_dir if continue_from_checkpoint and checkpoint_has_state else pretrained_model
+    model = AutoModelForCausalLM.from_pretrained(model_source)
     model.resize_token_embeddings(len(tokenizer))
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=model_config["optimizer"]["lr"])
-    num_epochs = config["training"]["transformer"]["num_epochs"]
-    total_steps = num_epochs * len(dataloader)
+    num_epochs = int(transformer_cfg["num_epochs"])
+    total_epochs = max(num_epochs + additional_epochs, num_epochs)
+    total_steps = total_epochs * len(dataloader)
     scheduler = get_cosine_schedule_with_warmup(
         optimizer,
         num_warmup_steps=int(0.1 * total_steps),
@@ -94,7 +102,7 @@ def fine_tune() -> None:
     )
 
     model.train()
-    for epoch in range(num_epochs):
+    for epoch in range(total_epochs):
         total_loss = 0.0
         for batch in dataloader:
             optimizer.zero_grad()
@@ -106,7 +114,7 @@ def fine_tune() -> None:
             scheduler.step()
             total_loss += loss.item()
         avg_loss = total_loss / len(dataloader)
-        LOGGER.info("Epoch %d/%d - Loss: %.4f", epoch + 1, num_epochs, avg_loss)
+        LOGGER.info("Epoch %d/%d - Loss: %.4f", epoch + 1, total_epochs, avg_loss)
 
     model.save_pretrained(checkpoint_dir)
     tokenizer.save_pretrained(checkpoint_dir)

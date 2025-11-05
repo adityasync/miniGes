@@ -11,6 +11,7 @@ paths:
   recognition_checkpoint_dir: models/checkpoints/sign_recognition
   transformer_checkpoint_dir: models/checkpoints/transformer
   logs_dir: logs
+  reports_dir: reports
 preprocessing:
   frame_rate: 25
   frame_resize:
@@ -38,7 +39,20 @@ preprocessing:
     brightness:
     - 0.8
     - 1.2
-    horizontal_flip: false
+    contrast:
+    - 0.85
+    - 1.15
+    horizontal_flip: true
+    horizontal_flip_prob: 0.4
+    translate_percent:
+    - 0.0
+    - 0.05
+    gaussian_noise:
+    - 1.0
+    - 5.0
+    gaussian_noise_prob: 0.2
+    affine_prob: 0.55
+    brightness_contrast_prob: 0.35
   split_ratios:
     train: 0.7
     val: 0.15
@@ -47,8 +61,10 @@ training:
   recognition:
     batch_size: 2
     num_epochs: 20
-    learning_rate: 0.00025
-    weight_decay: 0.00005
+    learning_rate: 0.0002
+    weight_decay: 0.0001
+    resume_from_checkpoint: true
+    resume_lr_factor: 0.5
     scheduler: cosine
     warmup_epochs: 4
     warmup_start_factor: 0.1
@@ -65,12 +81,14 @@ training:
     normalize: true
     balance_classes: true
     temporal_jitter: true
-    label_smoothing: 0.05
-    backbone_lr_multiplier: 0.5
+    label_smoothing: 0.1
+    backbone_lr_multiplier: 0.3
     exclude_labels: []
   transformer:
     batch_size: 32
     num_epochs: 40
+    additional_epochs: 10
+    continue_from_checkpoint: true
     learning_rate: 0.0003
     weight_decay: 0.0001
     max_seq_length: 16

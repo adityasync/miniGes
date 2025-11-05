@@ -9,9 +9,20 @@ import random
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
+import os
+import sys
 from typing import Dict, List, Optional, Tuple
 
 import streamlit as st
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+try:
+    os.chdir(PROJECT_ROOT)
+except OSError:
+    pass
 
 from src.inference import Prediction, SignRecognizer, SentenceGenerator, load_display_labels
 from src.utils import load_config, resolve_path, strip_label_prefix

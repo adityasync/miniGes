@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import random
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import cv2
 import numpy as np
@@ -35,6 +35,7 @@ class SignVideoDataset(Dataset):
         normalize: bool = False,
         mean: Optional[Tuple[float, float, float]] = None,
         std: Optional[Tuple[float, float, float]] = None,
+        augmentations_config: Optional[Dict[str, Any]] = None,
         temporal_jitter: bool = False,
         clip_stride: int = 1,
     ) -> None:
@@ -66,14 +67,7 @@ class SignVideoDataset(Dataset):
             if A is None:
                 LOGGER.warning("Albumentations not installed; augmentation disabled.")
             else:
-                self.augmentor = A.Compose(
-                    [
-                        A.HorizontalFlip(p=0.2),
-                        A.Affine(scale=(0.9, 1.1), translate_percent=(0.0, 0.05), rotate=(-10, 10), p=0.5),
-                        A.RandomBrightnessContrast(p=0.3),
-                        A.GaussNoise(var_limit=(1.0, 5.0), p=0.2),
-                    ]
-                )
+                self.augmentor = self._build_augmentor(augmentations_config or {})
 
     def __len__(self) -> int:
         return len(self.samples)
@@ -125,6 +119,66 @@ class SignVideoDataset(Dataset):
         frames_np = np.stack(processed_frames)  # (T, H, W, C)
         frames_tensor = torch.from_numpy(frames_np).permute(0, 3, 1, 2).contiguous()
         return frames_tensor
+
+    def _build_augmentor(self, augmentations_config: Dict[str, Any]) -> Optional[Any]:
+        if A is None:
+            return None
+
+        def _range(value, default):
+            if isinstance(value, (list, tuple)) and len(value) == 2:
+                return float(value[0]), float(value[1])
+            return default
+
+        def _offset_range(value, default):
+            if isinstance(value, (list, tuple)) and len(value) == 2:
+                return float(value[0]) - 1.0, float(value[1]) - 1.0
+            return default
+
+        transforms = []
+
+        horizontal_flip = augmentations_config.get("horizontal_flip", True)
+        flip_prob = augmentations_config.get("horizontal_flip_prob", 0.2)
+        if isinstance(horizontal_flip, (int, float)):
+            flip_prob = float(horizontal_flip)
+            horizontal_flip = True
+        if horizontal_flip:
+            transforms.append(A.HorizontalFlip(p=float(flip_prob)))
+
+        affine_prob = float(augmentations_config.get("affine_prob", 0.5))
+        if affine_prob > 0:
+            rotation_range = _range(augmentations_config.get("rotation"), (-10.0, 10.0))
+            scale_range = _range(augmentations_config.get("scale"), (0.9, 1.1))
+            translate_range = _range(augmentations_config.get("translate_percent"), (0.0, 0.05))
+            transforms.append(
+                A.Affine(
+                    scale=scale_range,
+                    translate_percent=translate_range,
+                    rotate=rotation_range,
+                    p=affine_prob,
+                )
+            )
+
+        brightness_contrast_prob = float(augmentations_config.get("brightness_contrast_prob", 0.3))
+        if brightness_contrast_prob > 0:
+            brightness_limit = _offset_range(augmentations_config.get("brightness"), (-0.2, 0.2))
+            contrast_limit = _offset_range(augmentations_config.get("contrast"), (-0.2, 0.2))
+            transforms.append(
+                A.RandomBrightnessContrast(
+                    brightness_limit=brightness_limit,
+                    contrast_limit=contrast_limit,
+                    p=brightness_contrast_prob,
+                )
+            )
+
+        gaussian_noise_prob = float(augmentations_config.get("gaussian_noise_prob", 0.2))
+        if gaussian_noise_prob > 0:
+            noise_range = _range(augmentations_config.get("gaussian_noise"), (1.0, 5.0))
+            transforms.append(A.GaussNoise(var_limit=noise_range, p=gaussian_noise_prob))
+
+        if not transforms:
+            return None
+
+        return A.Compose(transforms)
 
     def _select_frame_indices(self, available_frames: int) -> List[int]:
         if available_frames <= 0:
