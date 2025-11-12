@@ -66,11 +66,11 @@ training:
     resume_from_checkpoint: true
     resume_lr_factor: 0.5
     scheduler: cosine
-    warmup_epochs: 4
+    warmup_epochs: 2
     warmup_start_factor: 0.1
     gradient_clip_norm: 2.0
     gradient_accumulation_steps: 4
-    early_stopping_patience: 10
+    early_stopping_patience: 5
     mixed_precision: true
     val_split: 0.2
     max_samples_per_class: null

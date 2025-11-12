@@ -179,6 +179,55 @@ def build_sign_recognition_model(model_cfg: Dict[str, any]) -> nn.Module:
             nn.Dropout(dropout),
             nn.Linear(embed_dim, num_classes),
         )
+    elif architecture == "r3d18_bilstm_attn":
+        weights_enum = model_cfg.get("pretrained_weights", "DEFAULT")
+        weights = None
+        if weights_enum and weights_enum not in {"none", "NONE", None}:
+            weights = getattr(R3D_18_Weights, weights_enum, R3D_18_Weights.DEFAULT)
+
+        class ResNet3D_BiLSTM_Attn(nn.Module):
+            def __init__(self, cfg: Dict[str, Any]):
+                super().__init__()
+                backbone = r3d_18(weights=weights)
+                self.stem = backbone.stem
+                self.layer1 = backbone.layer1
+                self.layer2 = backbone.layer2
+                self.layer3 = backbone.layer3
+                self.layer4 = backbone.layer4
+                self.feature_dim = 512
+                lstm_hidden = int(cfg.get("lstm_hidden", 512))
+                lstm_layers = int(cfg.get("lstm_layers", 1))
+                self.lstm = nn.LSTM(
+                    input_size=self.feature_dim,
+                    hidden_size=lstm_hidden,
+                    num_layers=lstm_layers,
+                    batch_first=True,
+                    bidirectional=True,
+                )
+                attn_dim = 2 * lstm_hidden
+                self.attn_proj = nn.Linear(attn_dim, attn_dim)
+                self.attn_vec = nn.Linear(attn_dim, 1, bias=False)
+                cls_cfg = cfg.get("classifier", {})
+                self.dropout = nn.Dropout(float(cls_cfg.get("dropout", 0.3)))
+                self.fc = nn.Linear(attn_dim, int(cls_cfg.get("num_classes", 30)))
+
+            def forward(self, x: torch.Tensor) -> torch.Tensor:
+                x = self.stem(x)
+                x = self.layer1(x)
+                x = self.layer2(x)
+                x = self.layer3(x)
+                x = self.layer4(x)
+                x = x.mean(dim=[3, 4])
+                x = x.permute(0, 2, 1).contiguous()
+                x, _ = self.lstm(x)
+                scores = self.attn_vec(torch.tanh(self.attn_proj(x)))
+                weights = torch.softmax(scores, dim=1)
+                context = (weights * x).sum(dim=1)
+                out = self.dropout(context)
+                out = self.fc(out)
+                return out
+
+        model = ResNet3D_BiLSTM_Attn(model_cfg)
     else:
         raise ValueError(f"Unsupported sign-recognition architecture: {architecture}")
 

@@ -9,6 +9,7 @@ with TODO markers to guide incremental development.
 from __future__ import annotations
 
 import logging
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, List
@@ -20,6 +21,12 @@ try:
     import mediapipe as mp
 except ImportError:  # pragma: no cover - optional until installed
     mp = None  # type: ignore
+
+# Optional: reduce noisy C++/absl logs from MediaPipe/TFLite if absl is available
+try:
+    from absl import logging as absl_logging  # type: ignore
+except Exception:  # pragma: no cover - optional dependency
+    absl_logging = None  # type: ignore
 
 from src.utils import load_config, resolve_path, seed_everything, setup_logging
 
@@ -62,6 +69,15 @@ class DataPreprocessor:
 
     def __init__(self, config: PreprocessingConfig) -> None:
         self.config = config
+        # Lower TensorFlow/absl verbosity before MediaPipe graphs are created
+        os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")  # 1=INFO,2=WARNING,3=ERROR
+        os.environ.setdefault("GLOG_minloglevel", "2")
+        if absl_logging is not None:  # type: ignore
+            try:
+                absl_logging.set_verbosity(absl_logging.ERROR)
+                absl_logging.set_stderrthreshold("error")
+            except Exception:
+                pass
         self.config.raw_output_dir.mkdir(parents=True, exist_ok=True)
         self.config.processed_output_dir.mkdir(parents=True, exist_ok=True)
         self.config.splits_dir.mkdir(parents=True, exist_ok=True)
@@ -72,7 +88,13 @@ class DataPreprocessor:
         """Entry point for processing the full dataset."""
 
         LOGGER.info("Starting dataset preprocessing from %s", self.config.dataset_root)
-        video_files = list(self.config.dataset_root.rglob("*.mp4"))
+        # Discover common video formats
+        video_patterns = ["*.mp4", "*.MP4", "*.mov", "*.MOV", "*.avi", "*.AVI", "*.mkv", "*.MKV"]
+        video_files = []
+        for pat in video_patterns:
+            video_files.extend(self.config.dataset_root.rglob(pat))
+        # Deduplicate paths
+        video_files = sorted({p.resolve() for p in video_files})
         if not video_files:
             LOGGER.warning("No video files found in dataset root %s", self.config.dataset_root)
             return
@@ -92,10 +114,20 @@ class DataPreprocessor:
 
         capture = cv2.VideoCapture(str(video_path))
         frames: List[np.ndarray] = []
+        # Determine sampling stride based on desired frame_rate
+        desired_fps = max(1, int(self.config.frame_rate))
+        src_fps = capture.get(cv2.CAP_PROP_FPS) or 0
+        stride = 1
+        if src_fps and src_fps > 0:
+            stride = max(1, int(round(src_fps / desired_fps)))
+
         success, frame = capture.read()
+        idx = 0
         while success and len(frames) < self.config.max_frames_per_clip:
-            frame = cv2.resize(frame, self.config.frame_resize)
-            frames.append(frame)
+            if idx % stride == 0:
+                frame = cv2.resize(frame, self.config.frame_resize)
+                frames.append(frame)
+            idx += 1
             success, frame = capture.read()
         capture.release()
         return frames
@@ -107,7 +139,13 @@ class DataPreprocessor:
             LOGGER.error("MediaPipe is not installed. Skipping landmark extraction.")
             return []
 
-        hands = mp.solutions.hands.Hands(static_image_mode=False, max_num_hands=2)
+        hands = mp.solutions.hands.Hands(
+            static_image_mode=False,
+            max_num_hands=1,
+            model_complexity=0,
+            min_detection_confidence=0.6,
+            min_tracking_confidence=0.5,
+        )
         landmarks: List[np.ndarray] = []
         for frame in frames:
             result = hands.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
@@ -136,7 +174,11 @@ class DataPreprocessor:
             return
 
         relative = video_path.relative_to(self.config.dataset_root)
-        save_path = self.config.mediapipe_output_dir / relative.with_suffix("_landmarks.npz")
+        save_path = (
+            self.config.mediapipe_output_dir
+            / relative.parent
+            / f"{relative.stem}_landmarks.npz"
+        )
         save_path.parent.mkdir(parents=True, exist_ok=True)
         np.savez_compressed(save_path, landmarks=np.stack(landmarks))
         LOGGER.debug("Saved landmarks %s", save_path)

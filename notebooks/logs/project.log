@@ -1,0 +1,20 @@
+2025-11-07 00:51:31,126 | INFO | src.data_preprocessing | Starting dataset preprocessing from /home/aditya/workhub/python/project/sinGes(mini)/dataset
+2025-11-07 00:51:31,141 | WARNING | src.data_preprocessing | No video files found in dataset root /home/aditya/workhub/python/project/sinGes(mini)/dataset
+2025-11-07 00:58:29,194 | INFO | src.data_preprocessing | Starting dataset preprocessing from /home/aditya/workhub/python/project/sinGes(mini)/dataset
+2025-11-07 00:58:29,241 | WARNING | src.data_preprocessing | No video files found in dataset root /home/aditya/workhub/python/project/sinGes(mini)/dataset
+2025-11-07 01:04:09,333 | INFO | src.inference | Loading sign recognizer on device: cuda
+2025-11-07 01:06:53,380 | INFO | src.data_preprocessing | Starting dataset preprocessing from /home/aditya/workhub/python/project/sinGes(mini)/dataset
+2025-11-07 01:06:53,442 | WARNING | src.data_preprocessing | No video files found in dataset root /home/aditya/workhub/python/project/sinGes(mini)/dataset
+2025-11-07 01:08:38,607 | INFO | src.train_recognition | Using device: cuda
+2025-11-07 01:08:39,260 | INFO | src.train_recognition | Discovered 46 classes | 691 training videos | 193 validation videos
+2025-11-07 01:08:45,440 | INFO | src.train_recognition | Existing checkpoint backed up to models/checkpoints/sign_recognition/r3d18_bilstm_attn_sign_recognition_backup_20251106T193844.pt
+2025-11-07 01:08:47,790 | INFO | src.train_recognition | Loaded checkpoint weights from models/checkpoints/sign_recognition/r3d18_bilstm_attn_sign_recognition.pt for fine-tuning
+2025-11-07 01:08:47,809 | INFO | src.train_recognition | Total trainable parameters: 38.47M
+2025-11-07 01:08:47,816 | INFO | src.train_recognition | Initial learning rates -> backbone: 6.00e-05 | classifier: 2.00e-04
+2025-11-07 01:08:47,818 | INFO | src.train_recognition | Using cosine scheduler with linear warmup (2 epochs, start factor 0.10)
+2025-11-07 01:08:47,819 | INFO | src.train_recognition | Scaled learning rates by factor 0.500 for resumed fine-tuning
+2025-11-07 01:08:47,819 | INFO | src.train_recognition | Starting training loop
+2025-11-07 01:11:46,731 | INFO | src.data_preprocessing | Starting dataset preprocessing from /home/aditya/workhub/python/project/sinGes(mini)/dataset
+2025-11-07 01:26:22,878 | INFO | src.data_preprocessing | Starting dataset preprocessing from /home/aditya/workhub/python/project/sinGes(mini)/dataset
+2025-11-07 01:30:04,056 | INFO | src.data_preprocessing | Starting dataset preprocessing from /home/aditya/workhub/python/project/sinGes(mini)/dataset
+2025-11-07 01:33:38,482 | WARNING | tornado.general | Got events for closed stream <zmq.eventloop.zmqstream.ZMQStream object at 0x7fcba1606bd0>

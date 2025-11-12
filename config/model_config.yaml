@@ -1,18 +1,19 @@
 sign_recognition:
-  architecture: mvit_v2_s
+  architecture: r3d18_bilstm_attn
   input_channels: 3
   frame_size:
-  - 224
-  - 224
-  temporal_length: 16
+  - 112
+  - 112
+  temporal_length: 32
   pretrained_weights: DEFAULT
   freeze_backbone: false
   unfreeze_layers: []
+  lstm_hidden: 512
+  lstm_layers: 1
   classifier:
-    dropout: 0.2
+    dropout: 0.3
     num_classes: 30
     layer_keywords:
-    - head
     - fc
   optimizer:
     type: adamw

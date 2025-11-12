@@ -715,3 +715,180 @@
  [0 0 0 ... 0 0 5]]
 2025-11-01 18:48:49,640 | INFO | __main__ | Saved training summary to logs/sign_recognition_runs/mvit_v2_s_run_20251101_184849.json
 2025-11-01 18:48:49,642 | INFO | __main__ | Wrote latest training analytics summary to logs/analysis/latest_training_summary.json
+2025-11-05 18:17:30,190 | INFO | __main__ | Using device: cuda
+2025-11-05 18:17:30,438 | INFO | __main__ | Discovered 46 classes | 691 training videos | 193 validation videos
+2025-11-05 18:17:32,560 | INFO | __main__ | Total trainable parameters: 38.47M
+2025-11-05 18:17:32,562 | INFO | __main__ | Initial learning rates -> backbone: 6.00e-05 | classifier: 2.00e-04
+2025-11-05 18:17:32,562 | INFO | __main__ | Using cosine scheduler with linear warmup (4 epochs, start factor 0.10)
+2025-11-05 18:17:32,562 | INFO | __main__ | Starting training loop
+2025-11-05 18:21:59,463 | INFO | __main__ | Epoch 1 | LRs [6.00e-06, 2.00e-05] | Train loss: 3.8318 acc: 0.0420 top5: 0.1433 | Val loss: 3.8739 acc: 0.0311 top5: 0.0881
+2025-11-05 18:22:00,186 | INFO | __main__ | Saved improved checkpoint to models/checkpoints/sign_recognition/r3d18_bilstm_attn_sign_recognition.pt (val acc 0.0311)
+2025-11-05 18:26:36,842 | INFO | __main__ | Epoch 2 | LRs [1.95e-05, 6.50e-05] | Train loss: 3.8451 acc: 0.0362 top5: 0.1317 | Val loss: 3.8669 acc: 0.0363 top5: 0.1036
+2025-11-05 18:26:38,233 | INFO | __main__ | Saved improved checkpoint to models/checkpoints/sign_recognition/r3d18_bilstm_attn_sign_recognition.pt (val acc 0.0363)
+2025-11-05 18:31:36,270 | INFO | __main__ | Epoch 3 | LRs [3.30e-05, 1.10e-04] | Train loss: 3.7850 acc: 0.0405 top5: 0.1925 | Val loss: 3.8250 acc: 0.0207 top5: 0.1554
+2025-11-05 18:36:19,020 | INFO | __main__ | Epoch 4 | LRs [4.65e-05, 1.55e-04] | Train loss: 3.5824 acc: 0.0753 top5: 0.3213 | Val loss: 3.6605 acc: 0.0363 top5: 0.1969
+2025-11-05 18:41:06,100 | INFO | __main__ | Epoch 5 | LRs [6.00e-05, 2.00e-04] | Train loss: 3.0588 acc: 0.1491 top5: 0.5441 | Val loss: 3.4379 acc: 0.0674 top5: 0.3212
+2025-11-05 18:41:07,639 | INFO | __main__ | Saved improved checkpoint to models/checkpoints/sign_recognition/r3d18_bilstm_attn_sign_recognition.pt (val acc 0.0674)
+2025-11-05 18:42:14,817 | INFO | __main__ | Final validation accuracy: 0.0674 | Top-5: 0.3212
+2025-11-05 18:42:14,818 | INFO | __main__ | Classification report:
+                  precision    recall  f1-score   support
+
+          1. Dog       0.00      0.00      0.00         4
+          2. Cat       0.00      0.00      0.00         4
+         3. Fish       0.00      0.00      0.00         4
+        3. happy       0.00      0.00      0.00         5
+         4. Bird       0.29      0.50      0.36         4
+          4. sad       0.00      0.00      0.00         2
+           40. I       0.00      0.00      0.00         5
+         41. you       0.00      0.00      0.00         5
+     42. T-Shirt       0.00      0.00      0.00         4
+          42. he       0.00      0.00      0.00         5
+        43. Pant       0.00      0.00      0.00         4
+         43. she       0.00      0.00      0.00         5
+       44. Shoes       0.20      0.75      0.32         4
+          44. it       0.00      0.00      0.00         5
+      45. Pocket       0.00      0.00      0.00         4
+          45. we       0.00      0.00      0.00         5
+46. you (plural)       0.00      0.00      0.00         5
+         47. Red       0.00      0.00      0.00         4
+        47. they       0.00      0.00      0.00         5
+       48. Green       0.00      0.00      0.00         4
+       48. Hello       0.00      0.00      0.00         5
+ 49. How are you       0.00      0.00      0.00         5
+    5. Beautiful       0.17      0.50      0.25         2
+     50. Alright       0.00      0.00      0.00         5
+      50. Yellow       0.00      0.00      0.00         4
+   55. Thank you       0.00      0.00      0.00         5
+     56. Pleased       0.00      0.00      0.00         5
+         58. Son       0.00      0.00      0.00         4
+    59. Daughter       0.00      0.00      0.00         4
+         6. Ugly       0.00      0.00      0.00         2
+      60. Mother       0.00      0.00      0.00         4
+      61. Father       0.00      0.00      0.00         4
+      62. Parent       0.00      0.00      0.00         4
+       73. Today       0.00      0.00      0.00         3
+    74. Tomorrow       0.00      0.00      0.00         3
+   75. Yesterday       0.00      0.00      0.00         3
+       79. Child       0.06      0.25      0.10         4
+       8. Animal       0.20      0.25      0.22         4
+       80. Adult       0.00      0.00      0.00         4
+      81. Friend       0.00      0.00      0.00         4
+      82. Player       0.00      0.00      0.00         4
+       83. Crowd       0.00      0.00      0.00         4
+         92. old       0.05      1.00      0.09         5
+       93. young       0.00      0.00      0.00         5
+        94. good       0.00      0.00      0.00         5
+         95. bad       0.00      0.00      0.00         5
+
+        accuracy                           0.07       193
+       macro avg       0.02      0.07      0.03       193
+    weighted avg       0.02      0.07      0.03       193
+
+2025-11-05 18:42:14,818 | INFO | __main__ | Confusion matrix:
+[[0 0 0 ... 0 0 0]
+ [0 0 0 ... 0 0 0]
+ [1 0 0 ... 1 0 0]
+ ...
+ [0 0 0 ... 0 0 0]
+ [0 0 0 ... 0 0 0]
+ [0 0 0 ... 0 0 0]]
+2025-11-05 18:42:14,855 | INFO | __main__ | Saved training summary to logs/sign_recognition_runs/r3d18_bilstm_attn_run_20251105_184214.json
+2025-11-05 18:42:14,858 | INFO | __main__ | Wrote latest training analytics summary to logs/analysis/latest_training_summary.json
+2025-11-05 19:05:15,585 | INFO | __main__ | Using device: cuda
+2025-11-05 19:05:15,896 | INFO | __main__ | Discovered 46 classes | 691 training videos | 193 validation videos
+2025-11-05 19:05:19,322 | INFO | __main__ | Existing checkpoint backed up to models/checkpoints/sign_recognition/r3d18_bilstm_attn_sign_recognition_backup_20251105T133518.pt
+2025-11-05 19:05:20,107 | INFO | __main__ | Loaded checkpoint weights from models/checkpoints/sign_recognition/r3d18_bilstm_attn_sign_recognition.pt for fine-tuning
+2025-11-05 19:05:20,108 | INFO | __main__ | Total trainable parameters: 38.47M
+2025-11-05 19:05:20,109 | INFO | __main__ | Initial learning rates -> backbone: 6.00e-05 | classifier: 2.00e-04
+2025-11-05 19:05:20,109 | INFO | __main__ | Using cosine scheduler with linear warmup (2 epochs, start factor 0.10)
+2025-11-05 19:05:20,109 | INFO | __main__ | Scaled learning rates by factor 0.500 for resumed fine-tuning
+2025-11-05 19:05:20,109 | INFO | __main__ | Starting training loop
+2025-11-05 19:10:06,843 | INFO | __main__ | Epoch 1 | LRs [3.00e-06, 1.00e-05] | Train loss: 2.8272 acc: 0.2156 top5: 0.6454 | Val loss: 3.5256 acc: 0.0674 top5: 0.2642
+2025-11-05 19:10:08,631 | INFO | __main__ | Saved improved checkpoint to models/checkpoints/sign_recognition/r3d18_bilstm_attn_sign_recognition.pt (val acc 0.0674)
+2025-11-05 19:14:52,008 | INFO | __main__ | Epoch 2 | LRs [1.65e-05, 5.50e-05] | Train loss: 2.7891 acc: 0.2533 top5: 0.7135 | Val loss: 3.3523 acc: 0.0984 top5: 0.3316
+2025-11-05 19:14:53,490 | INFO | __main__ | Saved improved checkpoint to models/checkpoints/sign_recognition/r3d18_bilstm_attn_sign_recognition.pt (val acc 0.0984)
+2025-11-05 19:19:41,314 | INFO | __main__ | Epoch 3 | LRs [3.00e-05, 1.00e-04] | Train loss: 2.5897 acc: 0.3401 top5: 0.7757 | Val loss: 3.3501 acc: 0.0829 top5: 0.3938
+2025-11-05 19:24:41,270 | INFO | __main__ | Epoch 4 | LRs [2.98e-05, 9.92e-05] | Train loss: 2.3419 acc: 0.4819 top5: 0.8784 | Val loss: 3.3908 acc: 0.1036 top5: 0.3472
+2025-11-05 19:24:43,332 | INFO | __main__ | Saved improved checkpoint to models/checkpoints/sign_recognition/r3d18_bilstm_attn_sign_recognition.pt (val acc 0.1036)
+2025-11-05 19:29:48,528 | INFO | __main__ | Epoch 5 | LRs [2.91e-05, 9.70e-05] | Train loss: 2.0260 acc: 0.5962 top5: 0.9392 | Val loss: 3.3452 acc: 0.1244 top5: 0.4093
+2025-11-05 19:29:49,906 | INFO | __main__ | Saved improved checkpoint to models/checkpoints/sign_recognition/r3d18_bilstm_attn_sign_recognition.pt (val acc 0.1244)
+2025-11-05 19:35:12,382 | INFO | __main__ | Epoch 6 | LRs [2.80e-05, 9.33e-05] | Train loss: 2.0871 acc: 0.5137 top5: 0.9204 | Val loss: 3.3217 acc: 0.1917 top5: 0.4819
+2025-11-05 19:35:13,887 | INFO | __main__ | Saved improved checkpoint to models/checkpoints/sign_recognition/r3d18_bilstm_attn_sign_recognition.pt (val acc 0.1917)
+2025-11-05 19:40:01,365 | INFO | __main__ | Epoch 7 | LRs [2.65e-05, 8.83e-05] | Train loss: 1.9204 acc: 0.5919 top5: 0.9638 | Val loss: 3.0890 acc: 0.2902 top5: 0.5285
+2025-11-05 19:40:03,888 | INFO | __main__ | Saved improved checkpoint to models/checkpoints/sign_recognition/r3d18_bilstm_attn_sign_recognition.pt (val acc 0.2902)
+2025-11-05 19:44:52,651 | INFO | __main__ | Epoch 8 | LRs [2.46e-05, 8.21e-05] | Train loss: 1.8053 acc: 0.6223 top5: 0.9667 | Val loss: 3.1389 acc: 0.2591 top5: 0.5389
+2025-11-05 19:50:04,221 | INFO | __main__ | Epoch 9 | LRs [2.25e-05, 7.50e-05] | Train loss: 1.6543 acc: 0.6918 top5: 0.9768 | Val loss: 3.0175 acc: 0.2798 top5: 0.5440
+2025-11-05 19:55:15,893 | INFO | __main__ | Epoch 10 | LRs [2.01e-05, 6.71e-05] | Train loss: 1.5219 acc: 0.7438 top5: 0.9928 | Val loss: 3.0963 acc: 0.2694 top5: 0.5389
+2025-11-05 20:00:12,215 | INFO | __main__ | Epoch 11 | LRs [1.76e-05, 5.87e-05] | Train loss: 1.4633 acc: 0.7771 top5: 0.9899 | Val loss: 2.9277 acc: 0.3161 top5: 0.5389
+2025-11-05 20:00:13,457 | INFO | __main__ | Saved improved checkpoint to models/checkpoints/sign_recognition/r3d18_bilstm_attn_sign_recognition.pt (val acc 0.3161)
+2025-11-05 20:05:05,867 | INFO | __main__ | Epoch 12 | LRs [1.50e-05, 5.00e-05] | Train loss: 1.3562 acc: 0.7945 top5: 0.9913 | Val loss: 3.0289 acc: 0.2953 top5: 0.5181
+2025-11-05 20:10:03,720 | INFO | __main__ | Epoch 13 | LRs [1.24e-05, 4.13e-05] | Train loss: 1.3120 acc: 0.8278 top5: 0.9913 | Val loss: 2.9815 acc: 0.3057 top5: 0.5596
+2025-11-05 20:15:02,380 | INFO | __main__ | Epoch 14 | LRs [9.87e-06, 3.29e-05] | Train loss: 1.2487 acc: 0.8379 top5: 0.9957 | Val loss: 3.1139 acc: 0.3005 top5: 0.5285
+2025-11-05 20:20:09,024 | INFO | __main__ | Epoch 15 | LRs [7.50e-06, 2.50e-05] | Train loss: 1.2283 acc: 0.8524 top5: 0.9971 | Val loss: 3.0947 acc: 0.3005 top5: 0.5389
+2025-11-05 20:25:29,338 | INFO | __main__ | Epoch 16 | LRs [5.36e-06, 1.79e-05] | Train loss: 1.1559 acc: 0.8944 top5: 1.0000 | Val loss: 3.0875 acc: 0.3005 top5: 0.5389
+2025-11-05 20:25:29,377 | INFO | __main__ | Early stopping triggered after 5 epochs without improvement
+2025-11-05 20:26:34,969 | INFO | __main__ | Final validation accuracy: 0.3161 | Top-5: 0.5389
+2025-11-05 20:26:34,977 | INFO | __main__ | Classification report:
+                  precision    recall  f1-score   support
+
+          1. Dog       0.10      0.25      0.14         4
+          2. Cat       0.67      1.00      0.80         4
+         3. Fish       0.12      0.50      0.19         4
+        3. happy       0.26      1.00      0.42         5
+         4. Bird       0.36      1.00      0.53         4
+          4. sad       0.40      1.00      0.57         2
+           40. I       0.00      0.00      0.00         5
+         41. you       0.00      0.00      0.00         5
+     42. T-Shirt       0.00      0.00      0.00         4
+          42. he       0.00      0.00      0.00         5
+        43. Pant       0.11      1.00      0.20         4
+         43. she       0.00      0.00      0.00         5
+       44. Shoes       0.27      0.75      0.40         4
+          44. it       0.50      0.40      0.44         5
+      45. Pocket       1.00      0.75      0.86         4
+          45. we       0.50      0.80      0.62         5
+46. you (plural)       0.00      0.00      0.00         5
+         47. Red       0.00      0.00      0.00         4
+        47. they       0.80      0.80      0.80         5
+       48. Green       0.00      0.00      0.00         4
+       48. Hello       0.00      0.00      0.00         5
+ 49. How are you       0.75      0.60      0.67         5
+    5. Beautiful       0.22      1.00      0.36         2
+     50. Alright       1.00      0.40      0.57         5
+      50. Yellow       0.00      0.00      0.00         4
+   55. Thank you       0.56      1.00      0.71         5
+     56. Pleased       0.00      0.00      0.00         5
+         58. Son       0.00      0.00      0.00         4
+    59. Daughter       0.00      0.00      0.00         4
+         6. Ugly       0.00      0.00      0.00         2
+      60. Mother       0.00      0.00      0.00         4
+      61. Father       0.00      0.00      0.00         4
+      62. Parent       0.00      0.00      0.00         4
+       73. Today       0.00      0.00      0.00         3
+    74. Tomorrow       0.00      0.00      0.00         3
+   75. Yesterday       0.00      0.00      0.00         3
+       79. Child       0.00      0.00      0.00         4
+       8. Animal       0.75      0.75      0.75         4
+       80. Adult       0.00      0.00      0.00         4
+      81. Friend       0.40      0.50      0.44         4
+      82. Player       0.00      0.00      0.00         4
+       83. Crowd       0.31      1.00      0.47         4
+         92. old       0.00      0.00      0.00         5
+       93. young       0.00      0.00      0.00         5
+        94. good       0.22      0.40      0.29         5
+         95. bad       0.00      0.00      0.00         5
+
+        accuracy                           0.32       193
+       macro avg       0.20      0.32      0.22       193
+    weighted avg       0.21      0.32      0.23       193
+
+2025-11-05 20:26:34,977 | INFO | __main__ | Confusion matrix:
+[[1 0 2 ... 0 0 0]
+ [0 4 0 ... 0 0 0]
+ [2 0 2 ... 0 0 0]
+ ...
+ [0 0 0 ... 0 1 0]
+ [0 0 1 ... 0 2 0]
+ [0 0 0 ... 0 2 0]]
+2025-11-05 20:26:35,015 | INFO | __main__ | Saved training summary to logs/sign_recognition_runs/r3d18_bilstm_attn_run_20251105_202634.json
+2025-11-05 20:26:35,021 | INFO | __main__ | Wrote latest training analytics summary to logs/analysis/latest_training_summary.json
