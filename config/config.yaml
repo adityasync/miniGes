@@ -9,6 +9,8 @@ paths:
   splits_dir: data/train_test_split
   mediapipe_output_dir: data/processed/mediapipe
   recognition_checkpoint_dir: models/checkpoints/sign_recognition
+  keypoint_checkpoint_dir: models/checkpoints/keypoint
+  onnx_export_dir: models/sign_recognition
   transformer_checkpoint_dir: models/checkpoints/transformer
   logs_dir: logs
   reports_dir: reports
@@ -19,8 +21,23 @@ preprocessing:
   - 112
   max_frames_per_clip: 32
   clip_stride: 2
+  hand_crop_size:
+  - 160
+  - 160
   use_mediapipe: true
   store_landmarks: true
+  mediapipe:
+    holistic_enabled: true
+    model_complexity: 0
+    detection_confidence: 0.6
+    tracking_confidence: 0.5
+    max_hands: 2
+    static_mode: false
+    refine_face_landmarks: true
+  keypoint_normalization:
+    reference: torso
+    shoulder_width_epsilon: 1.0e-06
+    center_hips: true
   normalize_mean:
   - 0.485
   - 0.456
@@ -30,59 +47,87 @@ preprocessing:
   - 0.224
   - 0.225
   augmentations:
-    rotation:
-    - -10
-    - 10
-    scale:
-    - 0.9
-    - 1.1
-    brightness:
+    horizontal_flip: true
+    horizontal_flip_prob: 0.5
+    random_resized_crop_prob: 0.35
+    random_resized_crop_scale:
     - 0.8
-    - 1.2
-    contrast:
+    - 1.0
+    random_resized_crop_ratio:
+    - 0.75
+    - 1.33
+    affine_prob: 0.7
+    rotation:
+    - -20
+    - 20
+    scale:
     - 0.85
     - 1.15
-    horizontal_flip: true
-    horizontal_flip_prob: 0.4
+    shear:
+    - -10
+    - 10
     translate_percent:
     - 0.0
-    - 0.05
+    - 0.08
+    color_jitter_prob: 0.5
+    brightness:
+    - 0.7
+    - 1.3
+    contrast:
+    - 0.7
+    - 1.3
+    saturation:
+    - 0.7
+    - 1.3
+    hue:
+    - -0.08
+    - 0.08
     gaussian_noise:
     - 1.0
-    - 5.0
-    gaussian_noise_prob: 0.2
-    affine_prob: 0.55
-    brightness_contrast_prob: 0.35
+    - 10.0
+    gaussian_noise_prob: 0.4
+    brightness_contrast_prob: 0.0
+  temporal_augmentations:
+    random_drop_prob: 0.15
+    random_drop_max_ratio: 0.1
+    speed_factor_range:
+    - 0.9
+    - 1.1
   split_ratios:
     train: 0.7
     val: 0.15
     test: 0.15
 training:
   recognition:
-    batch_size: 2
+    batch_size: 1
     num_epochs: 20
-    learning_rate: 0.0002
+    learning_rate: 0.0001
     weight_decay: 0.0001
     resume_from_checkpoint: true
     resume_lr_factor: 0.5
     scheduler: cosine
     warmup_epochs: 2
     warmup_start_factor: 0.1
-    gradient_clip_norm: 2.0
+    gradient_clip_norm: 1.0
     gradient_accumulation_steps: 4
-    early_stopping_patience: 5
+    early_stopping_patience: 8
     mixed_precision: true
     val_split: 0.2
     max_samples_per_class: null
-    num_workers: 4
+    num_workers: 2
     prefetch_factor: 1
     persistent_workers: false
     augment: true
     normalize: true
     balance_classes: true
+    sampler_type: weighted_random_sampler
+    compute_class_weights: true
     temporal_jitter: true
-    label_smoothing: 0.1
-    backbone_lr_multiplier: 0.3
+    label_smoothing: 0.0
+    backbone_lr_multiplier: 0.2
+    dropout: 0.45
+    focal_gamma: 2.0
+    force_rgb_training: false
     exclude_labels: []
   transformer:
     batch_size: 32
@@ -97,7 +142,40 @@ training:
     eos_token: <eos>
     vocab_file: dataset/ISL_30_words_complete.csv
 inference:
-  window_size: 16
-  stride: 4
-  min_confidence: 0.5
+  window_size: 24
+  stride: 6
+  min_confidence: 0.6
   device: cuda
+  smoothing_factor: 0.6
+  enable_keypoint_pipeline: true
+  realtime_batch_size: 1
+  max_queue: 4
+
+optimization:
+  export_onnx_quantize: true
+  quantization: int8
+  quantization_calibration_samples: 200
+
+keypoint_model:
+  enabled: true
+  input_size: 1629
+  hidden_size: 192
+  num_layers: 1
+  dropout: 0.3
+  batch_size: 8
+  learning_rate: 0.0005
+  weight_decay: 0.0001
+  num_epochs: 40
+  early_stopping_patience: 6
+  gradient_clip_norm: 5.0
+  mixed_precision: true
+  val_split: 0.2
+  max_samples_per_class: null
+  sampler_type: weighted_random_sampler
+  compute_class_weights: true
+  scheduler: cosine
+  warmup_epochs: 0
+  export_onnx: true
+  temporal_length: 32
+  gradient_accumulation_steps: 2
+  label_smoothing: 0.0

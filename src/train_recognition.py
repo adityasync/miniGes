@@ -10,14 +10,17 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import os
 import random
 import shutil
-from collections import Counter
+import sys
+import time
+from collections import defaultdict, deque
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Tuple
-import sys
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
@@ -25,11 +28,14 @@ if str(PROJECT_ROOT) not in sys.path:
 
 import torch
 from torch import amp, nn
+import torch.nn.functional as F
 from torch.nn.utils import clip_grad_norm_
 from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR, SequentialLR
 from torch.utils.data import DataLoader, WeightedRandomSampler
 from torchvision.models.video import mvit_v2_s, r3d_18
 from torchvision.models.video import MViT_V2_S_Weights, R3D_18_Weights
+
+import numpy as np
 
 from src.utils import (
     load_config,
@@ -40,8 +46,158 @@ from src.utils import (
 )
 from src.datasets import SignVideoDataset
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+from sklearn.utils.class_weight import compute_class_weight
 
 LOGGER = logging.getLogger(__name__)
+
+
+def ensure_dir(path: Path) -> Path:
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def get_cuda_vram_gb(device: torch.device) -> float:
+    try:
+        props = torch.cuda.get_device_properties(device)
+        return props.total_memory / (1024 ** 3)
+    except Exception:  # pragma: no cover - defensive fallback
+        return float("inf")
+
+
+def set_parameter_trainable(parameters: Iterable[nn.Parameter], trainable: bool) -> None:
+    for param in parameters:
+        param.requires_grad_(trainable)
+
+
+def log_and_save_epoch_metrics(
+    epoch: int,
+    y_true: List[int],
+    y_pred: List[int],
+    class_names: List[str],
+    logs_dir: Path,
+    architecture_name: str,
+) -> None:
+    if not y_true:
+        return
+
+    report_text = classification_report(y_true, y_pred, target_names=class_names, zero_division=0)
+    LOGGER.info("Per-class metrics (epoch %d):%s%s", epoch, os.linesep, report_text)
+
+    cm = confusion_matrix(y_true, y_pred)
+    confusion_dir = ensure_dir(Path(logs_dir) / "analysis" / "epoch_confusion")
+    cm_path = confusion_dir / f"{architecture_name}_epoch_{epoch:03d}.json"
+    payload = {
+        "epoch": epoch,
+        "confusion_matrix": cm.tolist(),
+        "class_names": class_names,
+        "classification_report": report_text,
+    }
+    cm_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+
+def export_model_to_onnx(
+    model: nn.Module,
+    dummy_input: torch.Tensor,
+    export_path: Path,
+    opset: int = 17,
+) -> None:
+    model.eval()
+    ensure_dir(export_path.parent)
+    torch.onnx.export(
+        model,
+        dummy_input,
+        export_path,
+        input_names=["video"],
+        output_names=["logits"],
+        opset_version=opset,
+        dynamic_axes={"video": {0: "batch", 2: "time"}, "logits": {0: "batch"}},
+    )
+    LOGGER.info("Exported ONNX model to %s", export_path)
+
+
+def convert_onnx_to_fp16(onnx_path: Path, fp16_path: Path) -> bool:
+    try:
+        from onnxruntime.tools.convert_onnx_models import convert_fp16_model_path
+
+        convert_fp16_model_path(str(onnx_path), str(fp16_path), keep_io_types=True)
+        LOGGER.info("Converted ONNX model to FP16 at %s", fp16_path)
+        return True
+    except ImportError:
+        LOGGER.warning(
+            "onnxruntime.tools.convert_onnx_models not available; skip FP16 conversion. "
+            "Run `python -m onnxruntime.tools.convert_onnx_models --fp16 %s` manually.",
+            onnx_path,
+        )
+    except Exception as exc:  # pragma: no cover - best effort logging
+        LOGGER.warning("Failed FP16 conversion: %s", exc)
+    return False
+
+
+class _CalibrationDataReader:
+    def __init__(self, samples: List[np.ndarray], input_name: str = "video") -> None:
+        self.samples = samples
+        self.input_name = input_name
+        self._iter = iter(samples)
+
+    def get_next(self) -> Optional[Dict[str, np.ndarray]]:  # pragma: no cover - simple iterator
+        try:
+            sample = next(self._iter)
+        except StopIteration:
+            return None
+        return {self.input_name: sample}
+
+
+def quantize_onnx_int8(
+    onnx_path: Path,
+    int8_path: Path,
+    calibration_samples: List[np.ndarray],
+) -> bool:
+    if not calibration_samples:
+        LOGGER.warning("No calibration samples supplied; skipping INT8 quantization")
+        return False
+
+    try:
+        from onnxruntime.quantization import QuantType, quantize_static
+
+        data_reader = _CalibrationDataReader(calibration_samples)
+        quantize_static(
+            model_input=str(onnx_path),
+            model_output=str(int8_path),
+            calibration_data_reader=data_reader,
+            activation_type=QuantType.QInt8,
+            weight_type=QuantType.QInt8,
+            optimize_model=False,
+        )
+        LOGGER.info("Quantized ONNX model to INT8 at %s", int8_path)
+        return True
+    except ImportError:
+        LOGGER.warning(
+            "onnxruntime.quantization not available; skipping INT8 quantization for %s",
+            onnx_path,
+        )
+    except Exception as exc:  # pragma: no cover - best effort logging
+        LOGGER.warning("Failed INT8 quantization: %s", exc)
+    return False
+
+
+def collect_calibration_samples(
+    loader: DataLoader,
+    max_samples: int,
+) -> List[np.ndarray]:
+    samples: List[np.ndarray] = []
+    total = 0
+    if max_samples <= 0:
+        return samples
+
+    for frames, _ in loader:
+        frames = frames.permute(0, 2, 1, 3, 4).contiguous()
+        batch_np = frames.numpy().astype(np.float32)
+        samples.append(batch_np)
+        total += batch_np.shape[0]
+        if total >= max_samples:
+            break
+
+    return samples
 
 
 def discover_videos(dataset_root: Path) -> Dict[str, List[Path]]:
@@ -137,20 +293,60 @@ class R3D18SignClassifier(nn.Module):
         return self.backbone(x)
 
 
-def _maybe_freeze_parameters(model: nn.Module, model_cfg: Dict[str, any]) -> None:
-    if not model_cfg.get("freeze_backbone", False):
-        return
+class FocalCrossEntropy(nn.Module):
+    def __init__(
+        self,
+        weight: Optional[torch.Tensor] = None,
+        gamma: float = 2.0,
+        label_smoothing: float = 0.0,
+    ) -> None:
+        super().__init__()
+        self.register_buffer("weight", weight if weight is not None else None)
+        self.gamma = max(0.0, float(gamma))
+        self.label_smoothing = float(label_smoothing)
 
+    def forward(self, logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+        if self.gamma <= 0.0:
+            return F.cross_entropy(
+                logits,
+                targets,
+                weight=self.weight,
+                label_smoothing=self.label_smoothing,
+            )
+
+        ce_per_sample = F.cross_entropy(
+            logits,
+            targets,
+            weight=self.weight,
+            label_smoothing=self.label_smoothing,
+            reduction="none",
+        )
+        probs = torch.softmax(logits, dim=1)
+        pt = probs.gather(1, targets.unsqueeze(1)).squeeze(1).clamp_min(1e-6)
+        focal_factor = (1.0 - pt) ** self.gamma
+        loss = focal_factor * ce_per_sample
+        return loss.mean()
+
+
+def _maybe_freeze_parameters(model: nn.Module, model_cfg: Dict[str, any]) -> None:
+    freeze_backbone = bool(model_cfg.get("freeze_backbone", False))
     trainable_keywords = set(model_cfg.get("classifier", {}).get("layer_keywords", []))
     unfreeze_layers = set(model_cfg.get("unfreeze_layers", []))
 
-    for name, param in model.named_parameters():
-        should_train = False
-        if any(keyword in name for keyword in trainable_keywords):
-            should_train = True
-        if any(layer_name in name for layer_name in unfreeze_layers):
-            should_train = True
-        param.requires_grad_(should_train)
+    if freeze_backbone:
+        for name, param in model.named_parameters():
+            should_train = False
+            if any(keyword in name for keyword in trainable_keywords):
+                should_train = True
+            if any(layer_name in name for layer_name in unfreeze_layers):
+                should_train = True
+            param.requires_grad_(should_train)
+
+    freeze_layers = set(model_cfg.get("freeze_layers", []))
+    if freeze_layers:
+        for name, param in model.named_parameters():
+            if any(name.startswith(layer_name) for layer_name in freeze_layers):
+                param.requires_grad_(False)
 
 
 def build_sign_recognition_model(model_cfg: Dict[str, any]) -> nn.Module:
@@ -278,6 +474,8 @@ def train() -> None:
     config = load_config()
     model_config = load_model_config()["sign_recognition"]
     train_config = config["training"]["recognition"]
+    logs_dir = ensure_dir(Path(config["paths"]["logs_dir"]))
+    optimization_config = config.get("optimization", {})
     seed_everything(config["project"]["seed"])
     setup_logging()
 
@@ -296,7 +494,10 @@ def train() -> None:
     exclude_labels = train_config.get("exclude_labels", [])
     class_to_paths = remove_excluded_labels(class_to_paths, exclude_labels)
     class_to_idx = {label: idx for idx, label in enumerate(sorted(class_to_paths))}
-    model_config["classifier"]["num_classes"] = len(class_to_idx)
+    classifier_cfg = model_config.setdefault("classifier", {})
+    classifier_cfg["num_classes"] = len(class_to_idx)
+    if "dropout" in train_config:
+        classifier_cfg["dropout"] = float(train_config["dropout"])
     idx_to_class = {idx: label for label, idx in class_to_idx.items()}
     class_names = [idx_to_class[idx] for idx in range(len(idx_to_class))]
 
@@ -325,6 +526,7 @@ def train() -> None:
         mean=mean,
         std=std,
         augmentations_config=config["preprocessing"].get("augmentations", {}),
+        temporal_augmentations_config=config["preprocessing"].get("temporal_augmentations", {}),
         temporal_jitter=train_config.get("temporal_jitter", False),
         clip_stride=int(config["preprocessing"].get("clip_stride", 1)),
     )
@@ -349,19 +551,40 @@ def train() -> None:
     num_workers = int(train_config.get("num_workers", 2))
     batch_size = int(train_config.get("batch_size", 16))
 
-    label_counts = Counter(class_to_idx[path.parent.name] for path in train_paths)
-    class_weights = torch.tensor(
-        [1.0 / label_counts.get(idx, 1) for idx in range(len(class_to_idx))],
-        dtype=torch.float32,
-        device=device,
-    )
+    num_classes = len(class_to_idx)
+    targets_array = np.array(train_dataset.targets, dtype=np.int64)
+    if targets_array.size == 0:
+        raise RuntimeError("Training dataset targets are empty; cannot proceed with training.")
+
+    class_weights = torch.ones(num_classes, dtype=torch.float32, device=device)
+    if train_config.get("compute_class_weights", False):
+        classes = np.arange(num_classes)
+        balanced_weights = compute_class_weight(class_weight="balanced", classes=classes, y=targets_array)
+        class_weights = torch.tensor(balanced_weights, dtype=torch.float32, device=device)
+        LOGGER.info("Computed balanced class weights for %d classes", num_classes)
 
     sampler = None
-    if train_config.get("balance_classes", False):
-        sample_weights = torch.tensor(
-            [1.0 / label_counts.get(label, 1) for _, label in train_dataset.samples], dtype=torch.double
+    sampler_type = str(train_config.get("sampler_type", "")).lower()
+    if sampler_type == "weighted_random_sampler":
+        class_counts = np.bincount(targets_array, minlength=num_classes)
+        inverse_freq = 1.0 / np.clip(class_counts, a_min=1, a_max=None)
+        sample_weights = inverse_freq[targets_array]
+        sampler = WeightedRandomSampler(
+            weights=torch.from_numpy(sample_weights).double(),
+            num_samples=len(sample_weights),
+            replacement=True,
         )
-        sampler = WeightedRandomSampler(sample_weights, num_samples=len(sample_weights), replacement=True)
+        LOGGER.info("Using WeightedRandomSampler with %d samples", len(sample_weights))
+    elif train_config.get("balance_classes", False):
+        class_counts = np.bincount(targets_array, minlength=num_classes)
+        inverse_freq = 1.0 / np.clip(class_counts, a_min=1, a_max=None)
+        sample_weights = inverse_freq[targets_array]
+        sampler = WeightedRandomSampler(
+            weights=torch.from_numpy(sample_weights).double(),
+            num_samples=len(sample_weights),
+            replacement=True,
+        )
+        LOGGER.info("Using fallback WeightedRandomSampler based on balance_classes flag")
 
     loader_kwargs = {
         "batch_size": batch_size,
@@ -467,10 +690,19 @@ def train() -> None:
         param_groups[-1]["lr"],
     )
 
-    criterion = nn.CrossEntropyLoss(
-        weight=class_weights,
-        label_smoothing=label_smoothing if label_smoothing > 0 else 0.0,
-    )
+    focal_gamma = float(train_config.get("focal_gamma", 0.0))
+    if focal_gamma > 0:
+        criterion = FocalCrossEntropy(
+            weight=class_weights,
+            gamma=focal_gamma,
+            label_smoothing=label_smoothing,
+        )
+        LOGGER.info("Using focal cross-entropy loss (gamma=%.2f)", focal_gamma)
+    else:
+        criterion = nn.CrossEntropyLoss(
+            weight=class_weights,
+            label_smoothing=label_smoothing if label_smoothing > 0 else 0.0,
+        )
 
     scheduler = None
     scheduler_name = str(train_config.get("scheduler", "")).lower()
@@ -584,6 +816,8 @@ def train() -> None:
             val_running_correct = 0
             val_top5_matches_total = 0
             val_samples = 0
+            val_y_true: List[int] = []
+            val_y_pred: List[int] = []
             with torch.no_grad():
                 for frames, labels in val_loader:
                     frames = frames.permute(0, 2, 1, 3, 4).contiguous()
@@ -598,10 +832,20 @@ def train() -> None:
                     val_top5_matches = (top5_preds == labels.unsqueeze(1)).any(dim=1).sum().item()
                     val_top5_matches_total += val_top5_matches
                     val_samples += labels.size(0)
+                    val_y_true.extend(labels.cpu().tolist())
+                    val_y_pred.extend(preds.cpu().tolist())
 
             val_loss = val_running_loss / max(val_samples, 1)
             val_acc = val_running_correct / max(val_samples, 1)
             val_top5 = val_top5_matches_total / max(val_samples, 1)
+            log_and_save_epoch_metrics(
+                epoch=epoch + 1,
+                y_true=val_y_true,
+                y_pred=val_y_pred,
+                class_names=class_names,
+                logs_dir=logs_dir,
+                architecture_name=architecture_name,
+            )
             lr_values = ", ".join(f"{group['lr']:.2e}" for group in optimizer.param_groups)
             LOGGER.info(
                 "Epoch %d | LRs [%s] | Train loss: %.4f acc: %.4f top5: %.4f | Val loss: %.4f acc: %.4f top5: %.4f",
@@ -737,6 +981,59 @@ def train() -> None:
     results["epoch_metrics"] = epoch_history
     if best_epoch is not None:
         results["best_epoch"] = best_epoch
+
+    export_requested = bool(optimization_config.get("export_onnx_quantize", False))
+    export_dir = ensure_dir(Path(config["paths"].get("onnx_export_dir", "models")))
+    onnx_export_path = export_dir / f"{architecture_name}.onnx"
+    fp16_export_path = onnx_export_path.with_suffix(".fp16.onnx")
+    int8_export_path = onnx_export_path.with_suffix(".int8.onnx")
+
+    if export_requested:
+        dummy_input = torch.randn(
+            1,
+            model_config.get("input_channels", 3),
+            model_config.get("temporal_length", 32),
+            *model_config.get("frame_size", [112, 112]),
+            device=device,
+        )
+        export_model_to_onnx(model, dummy_input, onnx_export_path)
+        fp16_success = convert_onnx_to_fp16(onnx_export_path, fp16_export_path)
+        if fp16_success:
+            results["onnx_fp16"] = str(fp16_export_path)
+        else:
+            results["onnx_fp16"] = None
+
+        quant_mode = optimization_config.get("quantization", "int8").lower()
+        if quant_mode == "int8":
+            calibration_samples = optimization_config.get("quantization_calibration_samples", 0)
+            if calibration_samples > 0 and val_loader is not None:
+                sample_loader = DataLoader(
+                    val_dataset if val_dataset else train_dataset,
+                    batch_size=loader_kwargs["batch_size"],
+                    num_workers=0,
+                    shuffle=True,
+                )
+                calibration_data = collect_calibration_samples(sample_loader, calibration_samples)
+            elif calibration_samples > 0:
+                calibration_data = collect_calibration_samples(train_loader, calibration_samples)
+            else:
+                calibration_data = []
+
+            int8_success = quantize_onnx_int8(
+                onnx_export_path,
+                int8_export_path,
+                calibration_data,
+            )
+            if int8_success:
+                results["onnx_int8"] = str(int8_export_path)
+            else:
+                results["onnx_int8"] = None
+        else:
+            LOGGER.info("Quantization mode '%s' not supported; skipping", quant_mode)
+            results["onnx_int8"] = None
+    else:
+        results["onnx_fp16"] = None
+        results["onnx_int8"] = None
 
     logs_base = Path(config["paths"].get("logs_dir", "logs"))
     archive_dir = logs_base / "sign_recognition_runs"

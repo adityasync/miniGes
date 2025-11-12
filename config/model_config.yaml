@@ -8,10 +8,13 @@ sign_recognition:
   pretrained_weights: DEFAULT
   freeze_backbone: false
   unfreeze_layers: []
+  freeze_layers:
+  - stem
+  - layer1
   lstm_hidden: 512
   lstm_layers: 1
   classifier:
-    dropout: 0.3
+    dropout: 0.45
     num_classes: 30
     layer_keywords:
     - fc
